@@ -19,7 +19,6 @@ interface GameState {
   player_a_cards: Card[];
   player_b_cards: Card[];
   result: string;
-  round_results: RoundResult[];
   player_a_score: number;
   player_b_score: number;
   game_over: boolean;
@@ -30,7 +29,6 @@ export default function Home() {
     player_a_cards: [],
     player_b_cards: [],
     result: '',
-    round_results: [],
     player_a_score: 0,
     player_b_score: 0,
     game_over: false
@@ -66,31 +64,35 @@ export default function Home() {
     
     setGameState(prev => ({
       ...prev,
-      round_results: [...prev.round_results, roundResult],
       result: roundResult.result,
       player_a_cards: prev.player_a_cards.filter(card => card.insect !== selectedCardA.insect),
       player_b_cards: prev.player_b_cards.filter(card => card.insect !== selectedCardB.insect),
+      player_a_score: roundResult.winner === 'A' 
+        ? prev.player_a_score + 1 
+        : roundResult.winner === 'draw' 
+          ? prev.player_a_score + 1 
+          : prev.player_a_score,
+      player_b_score: roundResult.winner === 'B' 
+        ? prev.player_b_score + 1 
+        : roundResult.winner === 'draw' 
+          ? prev.player_b_score + 1 
+          : prev.player_b_score,
     }));
     
     setSelectedCardA(null);
     setSelectedCardB(null);
   };
 
-  const calculateFinalResult = async () => {
-    const response = await fetch('/api/py/calculate_final_result', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(gameState.round_results),
-    });
-    const result = await response.json();
+  const calculateFinalResult = () => {
+    const finalResult = gameState.player_a_score > gameState.player_b_score 
+      ? '玩家A获胜！' 
+      : gameState.player_b_score > gameState.player_a_score 
+        ? '玩家B获胜！' 
+        : '平局！';
     
     setGameState(prev => ({
       ...prev,
-      result: result.final_result,
-      player_a_score: result.player_a_score,
-      player_b_score: result.player_b_score,
+      result: finalResult,
       game_over: true
     }));
   };
@@ -100,79 +102,52 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8">
-      <div className="w-full max-w-4xl bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold mb-8 text-center">昆虫对战游戏</h1>
+    <main className="flex min-h-screen flex-col p-4">
+      {/* 玩家 A 区域 - 上半部分 */}
+      <div className="flex-1 mb-4">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg min-h-[45vh]">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">玩家 A ({gameState.player_a_cards.length}张剩余)</h2>
+            <div className="text-lg font-bold">得分: {gameState.player_a_score}</div>
+          </div>
+          <div className="overflow-visible">
+            <div className="flex flex-wrap gap-4">
+              {gameState.player_a_cards.map((card, index) => (
+                <button
+                  key={index}
+                  className={`p-2 rounded-lg transition-all relative ${
+                    selectedCardA === card 
+                      ? 'ring-4 ring-blue-600 ring-offset-2 -translate-y-2' 
+                      : 'hover:-translate-y-1 hover:ring-2 hover:ring-blue-400 hover:ring-offset-1'
+                  }`}
+                  onClick={() => setSelectedCardA(card)}
+                  disabled={gameState.game_over}
+                >
+                  <div className="relative w-24 h-24 mb-1 bg-white rounded-lg overflow-hidden">
+                    <Image
+                      src={`/${card.image}`}
+                      alt={`昆虫 ${card.insect}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 中间控制区域 */}
+      <div className="flex flex-col items-center gap-4 my-2">
+        <div className="text-2xl font-bold">
+          {gameState.player_a_score} : {gameState.player_b_score}
+        </div>
         
-        <div className="mb-4 text-center">
-          <span className="text-xl font-bold">当前比分: </span>
-          <span className="text-xl">玩家A {gameState.player_a_score} : {gameState.player_b_score} 玩家B</span>
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-2xl mb-4">玩家 A 的卡片: ({gameState.player_a_cards.length}张剩余)</h2>
-          <div className="flex flex-wrap gap-4">
-            {gameState.player_a_cards.map((card, index) => (
-              <button
-                key={index}
-                className={`p-4 border-2 rounded-lg transition-colors ${
-                  selectedCardA === card 
-                    ? 'border-4 border-blue-600 scale-105' 
-                    : 'border-gray-300 hover:border-blue-400'
-                }`}
-                onClick={() => setSelectedCardA(card)}
-                disabled={gameState.game_over}
-              >
-                <div className="relative w-32 h-32 mb-2">
-                  <Image
-                    src={`/${card.image}`}
-                    alt={`昆虫 ${card.insect}`}
-                    fill
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-                <div className="text-center">
-                  分数: {card.score}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-2xl mb-4">玩家 B 的卡片: ({gameState.player_b_cards.length}张剩余)</h2>
-          <div className="flex flex-wrap gap-4">
-            {gameState.player_b_cards.map((card, index) => (
-              <button
-                key={index}
-                className={`p-4 border-2 rounded-lg transition-colors ${
-                  selectedCardB === card 
-                    ? 'border-4 border-blue-600 scale-105' 
-                    : 'border-gray-300 hover:border-blue-400'
-                }`}
-                onClick={() => setSelectedCardB(card)}
-                disabled={gameState.game_over}
-              >
-                <div className="relative w-32 h-32 mb-2">
-                  <Image
-                    src={`/${card.image}`}
-                    alt={`昆虫 ${card.insect}`}
-                    fill
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-                <div className="text-center">
-                  分数: {card.score}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-4 justify-center mb-8">
+        <div className="flex gap-4">
           {!gameState.game_over && gameState.player_a_cards.length > 0 && (
             <button
-              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               onClick={compareCards}
               disabled={!selectedCardA || !selectedCardB}
             >
@@ -181,14 +156,14 @@ export default function Home() {
           )}
           {!gameState.game_over && gameState.player_a_cards.length === 0 && (
             <button
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               onClick={calculateFinalResult}
             >
               结算游戏
             </button>
           )}
           <button
-            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
             onClick={startNewGame}
           >
             开始新游戏
@@ -196,18 +171,47 @@ export default function Home() {
         </div>
 
         {gameState.result && (
-          <div className="text-center text-2xl font-bold p-4 bg-blue-100 dark:bg-blue-900 rounded-lg">
+          <div className="text-center text-xl font-bold p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
             {gameState.result}
           </div>
         )}
+      </div>
 
-        <div className="mt-8">
-          <h3 className="text-xl mb-4">对战记录:</h3>
-          {gameState.round_results.map((round, index) => (
-            <div key={index} className="mb-2 p-2 bg-gray-100 dark:bg-gray-700 rounded">
-              第{index + 1}回合: {round.result}
+      {/* 玩家 B 区域 - 下半部分 */}
+      <div className="flex-1 mt-4">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg min-h-[45vh]">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">玩家 B ({gameState.player_b_cards.length}张剩余)</h2>
+            <div className="text-lg font-bold">得分: {gameState.player_b_score}</div>
+          </div>
+          <div className="overflow-visible">
+            <div className="flex flex-wrap gap-4">
+              {gameState.player_b_cards.map((card, index) => (
+                <button
+                  key={index}
+                  className={`p-2 rounded-lg transition-all relative ${
+                    selectedCardB === card 
+                      ? 'ring-4 ring-blue-600 ring-offset-2 -translate-y-2' 
+                      : 'hover:-translate-y-1 hover:ring-2 hover:ring-blue-400 hover:ring-offset-1'
+                  }`}
+                  onClick={() => setSelectedCardB(card)}
+                  disabled={gameState.game_over}
+                >
+                  <div className="relative w-24 h-24 mb-1 bg-white rounded-lg overflow-hidden">
+                    <Image
+                      src={`/${card.image}`}
+                      alt={`昆虫 ${card.insect}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="text-center text-sm">
+                    分数: {card.score}
+                  </div>
+                </button>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </main>
