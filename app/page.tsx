@@ -123,12 +123,12 @@ export default function Home() {
                   onClick={() => setSelectedCardA(card)}
                   disabled={gameState.game_over}
                 >
-                  <div className="relative w-24 h-24 mb-1 bg-white rounded-lg overflow-hidden">
+                  <div className={`relative w-[100px] h-[152.6px] bg-white rounded-lg overflow-hidden`}>
                     <Image
                       src={`/${card.image}`}
                       alt={`昆虫 ${card.insect}`}
                       fill
-                      className="object-cover"
+                      className="object-cover rounded-xl"
                     />
                   </div>
                 </button>
@@ -197,16 +197,13 @@ export default function Home() {
                   onClick={() => setSelectedCardB(card)}
                   disabled={gameState.game_over}
                 >
-                  <div className="relative w-24 h-24 mb-1 bg-white rounded-lg overflow-hidden">
+                  <div className={`relative w-[100px] h-[152.6px] bg-white rounded-lg overflow-hidden`}>
                     <Image
                       src={`/${card.image}`}
                       alt={`昆虫 ${card.insect}`}
                       fill
                       className="object-cover"
                     />
-                  </div>
-                  <div className="text-center text-sm">
-                    分数: {card.score}
                   </div>
                 </button>
               ))}
