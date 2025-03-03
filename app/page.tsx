@@ -1,121 +1,214 @@
-import Image from "next/image";
-import Link from "next/link";
+'use client';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+
+interface Card {
+  insect: string;
+  score: number;
+  image: string;
+}
+
+interface RoundResult {
+  card_a: Card;
+  card_b: Card;
+  winner: string;
+  result: string;
+}
+
+interface GameState {
+  player_a_cards: Card[];
+  player_b_cards: Card[];
+  result: string;
+  round_results: RoundResult[];
+  player_a_score: number;
+  player_b_score: number;
+  game_over: boolean;
+}
 
 export default function Home() {
+  const [gameState, setGameState] = useState<GameState>({
+    player_a_cards: [],
+    player_b_cards: [],
+    result: '',
+    round_results: [],
+    player_a_score: 0,
+    player_b_score: 0,
+    game_over: false
+  });
+  const [selectedCardA, setSelectedCardA] = useState<Card | null>(null);
+  const [selectedCardB, setSelectedCardB] = useState<Card | null>(null);
+
+  const startNewGame = async () => {
+    const response = await fetch('/api/py/new_game');
+    const data = await response.json();
+    setGameState({
+      ...data,
+      result: ''
+    });
+    setSelectedCardA(null);
+    setSelectedCardB(null);
+  };
+
+  const compareCards = async () => {
+    if (!selectedCardA || !selectedCardB) return;
+
+    const response = await fetch('/api/py/compare', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        card_a: selectedCardA,
+        card_b: selectedCardB
+      }),
+    });
+    const roundResult = await response.json();
+    
+    setGameState(prev => ({
+      ...prev,
+      round_results: [...prev.round_results, roundResult],
+      result: roundResult.result,
+      player_a_cards: prev.player_a_cards.filter(card => card.insect !== selectedCardA.insect),
+      player_b_cards: prev.player_b_cards.filter(card => card.insect !== selectedCardB.insect),
+    }));
+    
+    setSelectedCardA(null);
+    setSelectedCardB(null);
+  };
+
+  const calculateFinalResult = async () => {
+    const response = await fetch('/api/py/calculate_final_result', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(gameState.round_results),
+    });
+    const result = await response.json();
+    
+    setGameState(prev => ({
+      ...prev,
+      result: result.final_result,
+      player_a_score: result.player_a_score,
+      player_b_score: result.player_b_score,
+      game_over: true
+    }));
+  };
+
+  useEffect(() => {
+    startNewGame();
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing FastApi API&nbsp;
-          <Link href="/api/py/helloFastApi">
-            <code className="font-mono font-bold">api/index.py</code>
-          </Link>
-        </p>
-        <p className="fixed right-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing Next.js API&nbsp;
-          <Link href="/api/helloNextJs">
-            <code className="font-mono font-bold">app/api/helloNextJs</code>
-          </Link>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main className="flex min-h-screen flex-col items-center p-8">
+      <div className="w-full max-w-4xl bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+        <h1 className="text-3xl font-bold mb-8 text-center">昆虫对战游戏</h1>
+        
+        <div className="mb-4 text-center">
+          <span className="text-xl font-bold">当前比分: </span>
+          <span className="text-xl">玩家A {gameState.player_a_score} : {gameState.player_b_score} 玩家B</span>
         </div>
-      </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <div className="mb-8">
+          <h2 className="text-2xl mb-4">玩家 A 的卡片: ({gameState.player_a_cards.length}张剩余)</h2>
+          <div className="flex flex-wrap gap-4">
+            {gameState.player_a_cards.map((card, index) => (
+              <button
+                key={index}
+                className={`p-4 border-2 rounded-lg transition-colors ${
+                  selectedCardA === card 
+                    ? 'border-4 border-blue-600 scale-105' 
+                    : 'border-gray-300 hover:border-blue-400'
+                }`}
+                onClick={() => setSelectedCardA(card)}
+                disabled={gameState.game_over}
+              >
+                <div className="relative w-32 h-32 mb-2">
+                  <Image
+                    src={`/${card.image}`}
+                    alt={`昆虫 ${card.insect}`}
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                </div>
+                <div className="text-center">
+                  分数: {card.score}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+        <div className="mb-8">
+          <h2 className="text-2xl mb-4">玩家 B 的卡片: ({gameState.player_b_cards.length}张剩余)</h2>
+          <div className="flex flex-wrap gap-4">
+            {gameState.player_b_cards.map((card, index) => (
+              <button
+                key={index}
+                className={`p-4 border-2 rounded-lg transition-colors ${
+                  selectedCardB === card 
+                    ? 'border-4 border-blue-600 scale-105' 
+                    : 'border-gray-300 hover:border-blue-400'
+                }`}
+                onClick={() => setSelectedCardB(card)}
+                disabled={gameState.game_over}
+              >
+                <div className="relative w-32 h-32 mb-2">
+                  <Image
+                    src={`/${card.image}`}
+                    alt={`昆虫 ${card.insect}`}
+                    fill
+                    className="object-cover rounded-lg"
+                  />
+                </div>
+                <div className="text-center">
+                  分数: {card.score}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+        <div className="flex gap-4 justify-center mb-8">
+          {!gameState.game_over && gameState.player_a_cards.length > 0 && (
+            <button
+              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              onClick={compareCards}
+              disabled={!selectedCardA || !selectedCardB}
+            >
+              对比卡片
+            </button>
+          )}
+          {!gameState.game_over && gameState.player_a_cards.length === 0 && (
+            <button
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              onClick={calculateFinalResult}
+            >
+              结算游戏
+            </button>
+          )}
+          <button
+            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            onClick={startNewGame}
+          >
+            开始新游戏
+          </button>
+        </div>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
+        {gameState.result && (
+          <div className="text-center text-2xl font-bold p-4 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            {gameState.result}
+          </div>
+        )}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+        <div className="mt-8">
+          <h3 className="text-xl mb-4">对战记录:</h3>
+          {gameState.round_results.map((round, index) => (
+            <div key={index} className="mb-2 p-2 bg-gray-100 dark:bg-gray-700 rounded">
+              第{index + 1}回合: {round.result}
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   );
