@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Card {
   insect: string;
@@ -35,6 +36,9 @@ export default function Home() {
   });
   const [selectedCardA, setSelectedCardA] = useState<Card | null>(null);
   const [selectedCardB, setSelectedCardB] = useState<Card | null>(null);
+  const [isPKing, setIsPKing] = useState(false);
+  const [showPKResult, setShowPKResult] = useState(false);
+  const [currentRoundResult, setCurrentRoundResult] = useState<RoundResult | null>(null);
 
   const startNewGame = async () => {
     const response = await fetch('/api/py/new_game');
@@ -49,7 +53,15 @@ export default function Home() {
 
   const compareCards = async () => {
     if (!selectedCardA || !selectedCardB) return;
-
+    
+    setIsPKing(true);
+    
+    // 等待卡片移动到中间
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // 显示PK结果
+    setShowPKResult(true);
+    
     const response = await fetch('/api/py/compare', {
       method: 'POST',
       headers: {
@@ -61,10 +73,13 @@ export default function Home() {
       }),
     });
     const roundResult = await response.json();
+    setCurrentRoundResult(roundResult);
+    
+    // 等待显示结果
+    await new Promise(resolve => setTimeout(resolve, 1200));
     
     setGameState(prev => ({
       ...prev,
-      result: roundResult.result,
       player_a_cards: prev.player_a_cards.filter(card => card.insect !== selectedCardA.insect),
       player_b_cards: prev.player_b_cards.filter(card => card.insect !== selectedCardB.insect),
       player_a_score: roundResult.winner === 'A' 
@@ -79,6 +94,11 @@ export default function Home() {
           : prev.player_b_score,
     }));
     
+    // 再等待一会儿显示结果
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setShowPKResult(false);
+    setIsPKing(false);
     setSelectedCardA(null);
     setSelectedCardB(null);
   };
@@ -138,6 +158,92 @@ export default function Home() {
         </div>
       </div>
 
+      {/* PK动画层 */}
+      <AnimatePresence>
+        {isPKing && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+          >
+            <div className="relative flex items-center gap-32">
+              {selectedCardA && (
+                <motion.div
+                  initial={{ x: -300, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -300, opacity: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-lg p-4"
+                >
+                  <div className="relative w-[150px] h-[229px] bg-white rounded-lg overflow-hidden">
+                    <Image
+                      src={`/${selectedCardA.image}`}
+                      alt={`昆虫 ${selectedCardA.insect}`}
+                      fill
+                      className="object-cover rounded-xl"
+                    />
+                  </div>
+                  <div className="text-center mt-2 text-lg font-bold">
+                    分数: {selectedCardA.score}
+                  </div>
+                </motion.div>
+              )}
+              
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1.5 }}
+                exit={{ scale: 0 }}
+                className="text-7xl font-bold text-red-600"
+              >
+                VS
+              </motion.div>
+
+              {selectedCardB && (
+                <motion.div
+                  initial={{ x: 300, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 300, opacity: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-lg p-4"
+                >
+                  <div className="relative w-[150px] h-[229px] bg-white rounded-lg overflow-hidden">
+                    <Image
+                      src={`/${selectedCardB.image}`}
+                      alt={`昆虫 ${selectedCardB.insect}`}
+                      fill
+                      className="object-cover rounded-xl"
+                    />
+                  </div>
+                  <div className="text-center mt-2 text-lg font-bold">
+                    分数: {selectedCardB.score}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {showPKResult && currentRoundResult && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1.5, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-8"
+              >
+                <span className="text-8xl font-bold text-yellow-500 bg-black/50 px-12 py-6 rounded-full">
+                  PK!
+                </span>
+                <motion.div
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-4xl font-bold text-white bg-black/50 px-8 py-4 rounded-full"
+                >
+                  {currentRoundResult.result}
+                </motion.div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 中间控制区域 */}
       <div className="flex flex-col items-center gap-4 my-2">
         <div className="text-2xl font-bold">
@@ -170,7 +276,7 @@ export default function Home() {
           </button>
         </div>
 
-        {gameState.result && (
+        {gameState.game_over && gameState.result && (
           <div className="text-center text-xl font-bold p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
             {gameState.result}
           </div>
