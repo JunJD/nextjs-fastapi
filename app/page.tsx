@@ -110,8 +110,8 @@ export default function Home() {
             <h2 className="text-xl font-bold">玩家 A ({gameState.player_a_cards.length}张剩余)</h2>
             <div className="text-lg font-bold">得分: {gameState.player_a_score}</div>
           </div>
-          <div className="overflow-visible">
-            <div className="flex flex-wrap gap-4">
+          <div className="overflow-visible flex items-center justify-center h-full">
+            <div className="flex flex-wrap gap-4 justify-center">
               {gameState.player_a_cards.map((card, index) => (
                 <button
                   key={index}
@@ -184,8 +184,8 @@ export default function Home() {
             <h2 className="text-xl font-bold">玩家 B ({gameState.player_b_cards.length}张剩余)</h2>
             <div className="text-lg font-bold">得分: {gameState.player_b_score}</div>
           </div>
-          <div className="overflow-visible">
-            <div className="flex flex-wrap gap-4">
+          <div className="overflow-visible flex items-center justify-center h-full">
+            <div className="flex flex-wrap gap-4 justify-center">
               {gameState.player_b_cards.map((card, index) => (
                 <button
                   key={index}
@@ -202,7 +202,7 @@ export default function Home() {
                       src={`/${card.image}`}
                       alt={`昆虫 ${card.insect}`}
                       fill
-                      className="object-cover"
+                      className="object-cover rounded-xl"
                     />
                   </div>
                 </button>
